@@ -3,7 +3,7 @@ dotenv.config();
 
 import express from "express";
 import { drizzle } from "drizzle-orm/neon-http";
-import { MockInterview } from "./db/schema.js";
+import { MockInterview, UserAnswer } from "./db/schema.js";
 import { v4 as uuid } from "uuid";
 import cors from "cors"; // Import cors middleware
 import { eq } from "drizzle-orm";
@@ -84,6 +84,49 @@ app.get("/api/interviewList/:userEmail", async (req, res) => {
 
 	try {
 		const interviews = await db.select().from(MockInterview).where(eq(MockInterview.createdBy, userEmail));
+
+		if (!interviews || interviews.length === 0) {
+			return res.status(404).json({ error: "Interview not found" });
+		}
+
+		res.status(200).json(interviews);
+	} catch (error) {
+		console.error("Error fetching interview:", error);
+		res.status(500).json({ error: "Failed to fetch interview" });
+	}
+});
+
+app.post("/api/interviews/userAnswer", async (req, res) => {
+	try {
+		const { question, correctAns, userAns, feedback, rating, userEmail, mockId } = req.body;
+
+		const userAnswerData = {
+			question,
+			correctAns,
+			userAns,
+			feedback,
+			rating,
+			userEmail,
+			mockIdRef: mockId,
+			createdAt: new Date().toISOString(),
+			id: Date.now(),
+		};
+
+		const insertedUserAnswer = await db.insert(UserAnswer).values(userAnswerData).returning();
+		res.status(200).json({ message: "User answer added successfully!", data: insertedUserAnswer[0] });
+	} catch (error) {
+		console.error("Error creating interview:", error);
+		res.status(500).json({ error: "Failed to post user amnswer" });
+	}
+});
+
+app.get("/api/feedback/:mockId", async (req, res) => {
+	const { mockId } = req.params;
+
+	try {
+        // const interviews = await db.select().from(MockInterview).where(eq(UserAnswer.mockIdRef, mockId));
+        const interviews = await db.select().from(UserAnswer).where(eq(UserAnswer.mockIdRef, mockId));
+
 
 		if (!interviews || interviews.length === 0) {
 			return res.status(404).json({ error: "Interview not found" });
